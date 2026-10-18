@@ -7,6 +7,7 @@ public class TelnetClient {
 
     private String serverIp;
     private int port;
+    private Socket socket;
 
     public TelnetClient(String serverIp, int port) {
         this.serverIp = serverIp;
@@ -15,12 +16,52 @@ public class TelnetClient {
 
     public void run() {
         try {
-            Socket socket = new Socket(serverIp, port);
-            // Implementation of receiving and sending data
-            // Implement processing of input from the user and sending data to the server
-            // Implement response processing from the server and output to the console
-        } catch (IOException e) {
+            socket = new Socket(serverIp, port);
+            Thread readerThread = new Thread(() -> {
+                try {
+                    BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                    String line;
+                    while ((line = in.readLine()) != null) {
+                        System.out.println(line);
+                    }
+                } catch (IOException e) {}
+            });
+
+            Thread writerThread = new Thread(() -> {
+                try {
+                    BufferedReader consoleIn = new BufferedReader(new InputStreamReader(System.in));
+                    PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                    
+                    String line;
+                    while ((line = consoleIn.readLine()) != null) {
+                        out.println(line);
+                        
+                        if ("/QUIT".equalsIgnoreCase(line.trim())) {
+                            break; 
+                        }
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+
+            readerThread.start();
+            writerThread.start();
+
+            writerThread.join();
+
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
+        } finally {
+            try {
+                if (socket != null && !socket.isClosed()) {
+                    socket.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
+
+
